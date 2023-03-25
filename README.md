@@ -1,6 +1,5 @@
 Reader App
 =============
-
 Installation:
 =============
 
