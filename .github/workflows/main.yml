@@ -1,15 +1,26 @@
-- name: github-action-auto-format
-  # You may pin to the exact commit or the version.
-  # uses: cloudposse/github-action-auto-format@970af4c15a720047204400fe5b5ae52fb2991e9b
-  uses: cloudposse/github-action-auto-format@v0.12.0
-  with:
-    # The path on the github-runner where the auto-format action scripts are checked out at runtime
-    actions-files-checkout-path: # optional, default is github-action-auto-format
-    # GitHub username for writing new commits
-    bot-name: # optional, default is cloudpossebot
-    # Email address associated with the GitHub user for writing new commits
-    bot-email: # optional
-    # Name of formatting task to execute. (Options include: readme, github, terraform, and context.)
-    format-task: 
-    # GitHub Token for use in `github_format.sh` and PR creation steps. This token must be granted `workflows` permissions.
-    workflow-token: 
+name: auto-format
+on: pull_request
+jobs:
+  format:
+    # Check if the PR is not from a fork
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+        with:
+          ref: ${{ github.head_ref }}
+      - name: autopep8
+        uses: peter-evans/autopep8@v1
+        with:
+          args: --exit-code --recursive --in-place --aggressive --aggressive .
+      - name: Check for modified files
+        id: git-check
+        run: echo "modified=$(if git diff-index --quiet HEAD --; then echo "false"; else echo "true"; fi)" >> $GITHUB_OUTPUT
+      - name: Push changes
+        if: steps.git-check.outputs.modified == 'true'
+        run: |
+          git config --global user.name 'Peter Evans'
+          git config --global user.email 'peter-evans@users.noreply.github.com'
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+          git commit -am "Automated changes"
+          git push
